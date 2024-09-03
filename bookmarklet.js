@@ -1,5 +1,5 @@
 async function main() {
-    const response = await fetch(window.FLRHrootURL + "/dialog.html")
+    const response = await fetch(window.FLRHrootURL + "/dialog.html");
     const container = document.createElement("div");
     const text = await response.text();
 
@@ -8,7 +8,6 @@ async function main() {
 
     dialog = document.body.querySelector("#flrh-dialog");
     dialog.show();
-    
     dialog_cancel = dialog.querySelector("#flrh-dialog-close-button");
     dialog_cancel.addEventListener("click", () => {
         dialog.close();
@@ -17,14 +16,14 @@ async function main() {
     
     let position = 0;
 
-    var node_iter = document.createNodeIterator(document.body, 
+    const node_iter = document.createNodeIterator(document.body,
         NodeFilter.SHOW_TEXT, 
         (node) => {
             if (node.parentElement.tagName === 'SCRIPT'
                 || node.parentElement.tagName === 'STYLE') {
                 return NodeFilter.FILTER_SKIP;
             }
-            return NodeFilter.FILTER_ACCEPT
+            return NodeFilter.FILTER_ACCEPT;
         }
     );
 
@@ -34,7 +33,7 @@ async function main() {
         textNodes.push(currentNode);
     }
 
-    ignore_chars = /[^\p{Punctuation}\s]/gu;
+    const ignore_chars = /[^\p{Punctuation}\s]/gu;
 
     for (el of textNodes) {
         const segmenter = new Intl.Segmenter([], { granularity: 'word' });
@@ -59,7 +58,7 @@ async function main() {
     document.body.addEventListener('click', async (event) => {
         const el = event.target;
         if (el.classList.contains('flrh-original-text') && el.parentElement.parentElement?.hasAttribute('data-group')){
-            split_group(el);
+            await split_group(el);
             return;
         }
         if (el.classList.contains('flrh-original-text') && !el.parentElement.hasAttribute('data-translated')) {
@@ -71,12 +70,22 @@ async function main() {
             return;
         }
     });
+
+    document.body.addEventListener('auxclick', async (event) => {
+        const el = event.target;
+        if (el.classList.contains('flrh-original-text') && el.parentElement.parentElement?.hasAttribute('data-group')){
+            clear_group(el);
+            return;
+        }
+    });
 }
 
 async function add_translation(element) {
     const siblings = find_groupable_siblings(element);
     if (siblings.prev || siblings.next) {
-        merge_group(element, siblings);
+        const group = merge_group(element, siblings);
+        await add_translated_group_element(group);
+
     } else {
         await add_translated_element(element);
     }
@@ -87,19 +96,35 @@ function remove_translation(element) {
 }
 
 async function add_translated_element(element) {
-    const text = element.textContent;
-    const translated_text = await translate(text);
+    if (element){
+        const text = element.textContent;
+        const translated_text = await translate(text);
+        const nel = document.createElement('div');
+        nel.classList.add('flrh-translated-text');
+        nel.textContent = translated_text;
+        element.parentElement.insertBefore(nel, element);
+        element.parentElement.setAttribute('data-translated', true);
+    }
+}
+
+async function add_translated_group_element(group) {
+    const text = group.textContent;
+    const translated_text = await translate_group(text);
     const nel = document.createElement('div');
-    nel.classList.add('flrh-translated-text');
+    nel.classList.add('flrh-translated-group-text');
     nel.textContent = translated_text;
-    element.parentElement.insertBefore(nel, element);
-    element.parentElement.setAttribute('data-translated', true);
+    group.insertBefore(nel, group.firstChild);
 }
 
 function remove_translated_element(element) {   
     const translated = element.querySelector(".flrh-translated-text");
     element.removeChild(translated);
     element.removeAttribute('data-translated');
+}
+
+function remove_translated_group_element(group) {
+    const translated = group.querySelector(".flrh-translated-group-text");
+    group.removeChild(translated);
 }
 
 function find_groupable_siblings(element) {
@@ -136,10 +161,12 @@ function merge_group(element, siblings) {
         nnodes.push(next);
     }
     if (prev?.hasAttribute('data-group')) {
+        remove_translated_group_element(prev);
         pnodes.push(...prev.childNodes);
         pnodes.push(...get_nodes_between(prev, parent));
     }
     if (next?.hasAttribute('data-group')) {
+        remove_translated_group_element(next);
         nnodes.push(...get_nodes_between(parent, next));
         nnodes.push(...next.childNodes);
     }
@@ -155,14 +182,17 @@ function merge_group(element, siblings) {
     if (next?.hasAttribute('data-group')) {
         next.remove();
     }
+    return new_group;
 }
 
-function split_group(element) {
+async function split_group(element) {
     const group = element.parentElement.parentElement;
     const parent = element.parentElement;
     const pnodes = [];
     const cnodes = [];
     const nnodes = [];
+
+    remove_translated_group_element(group);
     
     let cn = group.firstChild;
     while(cn != parent) {
@@ -182,28 +212,40 @@ function split_group(element) {
         cn = cn.nextSibling;
     }
 
-    console.log("pnodes", pnodes);
-    console.log("cnodes", cnodes);
-    console.log("nnodes", nnodes);
-
-
-    if (pnodes.filter((el) => el.nodeType != Node.TEXT_NODE).length <= 1) {
+    const pelnodes = pnodes.filter((el) => el.nodeType != Node.TEXT_NODE);
+    if (pelnodes.length <= 1) {
         pnodes.forEach((node) => group.parentNode.insertBefore(node, group));
+        await add_translated_element(pelnodes[0]?.firstChild);
+
     } else {
         const prev_group = document.createElement('span');
         prev_group.setAttribute('data-group', '');
         pnodes.forEach((node) => prev_group.appendChild(node));
         group.parentNode.insertBefore(prev_group, group);
+        await add_translated_group_element(prev_group);
     }
 
     cnodes.forEach((node) => group.parentNode.insertBefore(node, group));
 
-    if (nnodes.filter((el) => el.nodeType != Node.TEXT_NODE).length <= 1) {
+    const nelnodes = nnodes.filter((el) => el.nodeType != Node.TEXT_NODE);
+    if (nelnodes.length <= 1) {
         nnodes.reverse().forEach((node) => group.parentNode.insertBefore(node, group.nextSibling));
+        await add_translated_element(nelnodes[0]?.firstChild);
         group.remove();
     }
 
+    if (group) {
+        await add_translated_group_element(group);
+    }
+}
 
+function clear_group(element) {
+    const group = element.parentNode.parentNode;
+    remove_translated_group_element(group);
+    while(group.firstChild) {
+        group.parentElement.insertBefore(group.firstChild, group);
+    } 
+    group.remove();
 }
 
 function get_nodes_between(el1, el2) {
@@ -219,6 +261,10 @@ function get_nodes_between(el1, el2) {
 
 async function translate(text) {
     return text;
+}
+
+async function translate_group(text) {
+    return text.toUpperCase();
 }
 
 
