@@ -1,0 +1,37 @@
+:root {
+    --main-background-color: rgba(0, 127, 0, 0.4);
+}
+
+#flrh-dialog[open] {
+    position: fixed;
+    background-color: var(--main-background-color);
+    top:0;
+    left:0;
+    gap: 1em;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+}
+
+.flrh-translatable:hover {
+    box-shadow: 0 -5px 0 var(--main-background-color) inset;
+}
+.flrh-translatable {
+    display: inline-block;
+}
+
+.flrh-translated {
+    box-shadow: 0 -5px 0 var(--main-background-color) inset;
+}
+
+.flrh-original-text {
+    display: inline;
+}
+
+.flrh-translatable[data-translated=true] {
+    box-shadow: 0 -5px 0 var(--main-background-color) inset;
+}
+
+span[data-group] {
+    background-color: var(--main-background-color);
+}
