@@ -1,9 +1,54 @@
 async function main() {
+    [window.translation_worker, registry] = await setup_worker();
+    create_overlay(registry);
+    spanify_page();
+    setup_event_listners();
+    
+}
+
+async function create_overlay(registry){
     const response = await fetch(window.FLRHrootURL + "/dialog.html");
     const container = document.createElement("div");
     const text = await response.text();
 
     container.innerHTML = text;
+
+
+    const lang_map = new Map();
+
+    for (const touple in registry) {
+        const srclang = touple.slice(0, 2);
+        const dstlang = touple.slice(2, 4);
+        if (lang_map.has(srclang)) {
+            lang_map.get(srclang).set(dstlang, true);
+        } else {
+            const dst_map = new Map();
+            dst_map.set(dstlang, true);
+            lang_map.set(srclang, dst_map);
+        }
+    }
+
+    const dn = new Intl.DisplayNames(["en"], { type: "language" })
+
+    const srclang_options = container.querySelector("#srclang");
+    for (const key of lang_map.keys()) {
+        const option = document.createElement("option")
+        option.textContent = dn.of(key);
+        option.id = key;
+        srclang_options.appendChild(option);
+        if (key === "de") {
+            option.setAttribute("selected", "");
+        }
+    }
+
+    const dstlang_options = container.querySelector("#dstlang");
+    for (const key of lang_map.get("en").keys()) {
+        const option = document.createElement("option")
+        option.textContent = dn.of(key);
+        option.id = key;
+        dstlang_options.appendChild(option);
+    }
+
     document.body.appendChild(container);
 
     dialog = document.body.querySelector("#flrh-dialog");
@@ -13,7 +58,32 @@ async function main() {
         dialog.close();
         window.location.reload();
     });
-    
+}
+
+async function setup_worker() {
+    let worker_url = getWorkerURL(window.FLRHrootURL + "/worker.js");
+    const worker = new Worker(worker_url);
+    const res = await send_command(worker, ["import", window.FLRHrootURL]);
+    return [worker, res];
+}
+
+function send_command(worker, command) {
+    return new Promise((res, rej) => {
+        const channel = new MessageChannel();
+
+        channel.port1.onmessage = ({data}) => {
+            channel.port1.close();
+            if (data.error) {
+                rej(data.error);
+            } else {
+                res(data.result);
+            }
+        };
+        worker.postMessage(command, [channel.port2]);
+    });
+}
+
+function spanify_page() {
     let position = 0;
 
     const node_iter = document.createNodeIterator(document.body,
@@ -54,7 +124,9 @@ async function main() {
             el.parentNode.replaceChild(tmp, el);
         }
     }
+}
 
+function setup_event_listners() {
     document.body.addEventListener('click', async (event) => {
         const el = event.target;
         if (el.classList.contains('flrh-original-text') && el.parentElement.parentElement?.hasAttribute('data-group')){
@@ -99,32 +171,44 @@ async function add_translated_element(element) {
     if (element){
         const text = element.textContent;
         const translated_text = await translate(text);
-        const nel = document.createElement('div');
-        nel.classList.add('flrh-translated-text');
-        nel.textContent = translated_text;
-        element.parentElement.insertBefore(nel, element);
-        element.parentElement.setAttribute('data-translated', true);
+        new_translation_elment(element.parentElement,translated_text);
     }
 }
 
-async function add_translated_group_element(group) {
-    const text = group.textContent;
-    const translated_text = await translate_group(text);
-    const nel = document.createElement('div');
-    nel.classList.add('flrh-translated-group-text');
-    nel.textContent = translated_text;
-    group.insertBefore(nel, group.firstChild);
-}
-
 function remove_translated_element(element) {   
+    console.log(element);
     const translated = element.querySelector(".flrh-translated-text");
     element.removeChild(translated);
     element.removeAttribute('data-translated');
 }
 
+async function add_translated_group_element(group) {
+    const text = group.textContent;
+    const translated_text = await translate(text);
+    const translatables = Array.from(group.querySelectorAll('.flrh-translatable'));
+    segments = translated_text.split(/\s+/);
+
+    let i = 0;
+    for (element of translatables.slice(0, -1)) {
+        new_translation_elment(element, segments[i]);
+        i += 1;
+    }
+    const last = translatables.at(-1);
+    new_translation_elment(last, segments.slice(i).join(" "));
+}
+
+function new_translation_elment(parent, text) {
+    console.log(parent, text);
+    const nel = document.createElement('div');
+    nel.classList.add('flrh-translated-text');
+    nel.textContent = text;
+    parent.insertBefore(nel,parent.firstChild);
+    parent.setAttribute('data-translated', true);
+}
+
 function remove_translated_group_element(group) {
-    const translated = group.querySelector(".flrh-translated-group-text");
-    group.removeChild(translated);
+    const translated = group.querySelectorAll(".flrh-translatable");
+    translated.forEach((node) => remove_translated_element(node));
 }
 
 function find_groupable_siblings(element) {
@@ -234,7 +318,7 @@ async function split_group(element) {
         group.remove();
     }
 
-    if (group) {
+    if (group?.childNodes.length) {
         await add_translated_group_element(group);
     }
 }
@@ -260,11 +344,18 @@ function get_nodes_between(el1, el2) {
 }
 
 async function translate(text) {
-    return text;
+    const flrh_dialog = document.getElementById("flrh-dialog");
+    const srclang_select = flrh_dialog.querySelector("#srclang");
+    const dstlang_select = flrh_dialog.querySelector("#dstlang");
+    const srclang = srclang_select.options[srclang_select.selectedIndex];
+    const dstlang = dstlang_select.options[dstlang_select.selectedIndex];
+    const translation = await send_command(window.translation_worker, ["translate", srclang.id, dstlang.id, text]);
+    return translation;
 }
 
-async function translate_group(text) {
-    return text.toUpperCase();
+function getWorkerURL( url ) {
+  const content = `importScripts( "${ url }" );`;
+  return URL.createObjectURL( new Blob( [ content ], { type: "text/javascript" } ) );
 }
 
 
