@@ -176,7 +176,6 @@ async function add_translated_element(element) {
 }
 
 function remove_translated_element(element) {   
-    console.log(element);
     const translated = element.querySelector(".flrh-translated-text");
     element.removeChild(translated);
     element.removeAttribute('data-translated');
@@ -189,19 +188,68 @@ async function add_translated_group_element(group) {
     segments = translated_text.split(/\s+/);
 
     let i = 0;
-    for (element of translatables.slice(0, -1)) {
+    for (element of translatables) {
         new_translation_elment(element, segments[i]);
+        const span = document.createElement('span');
         i += 1;
     }
-    const last = translatables.at(-1);
-    new_translation_elment(last, segments.slice(i).join(" "));
+    const distances = compute_distances(group);
+
+    if (distances.length == 1){
+        const nts = new_translation_span(translated_text);
+        group.insertBefore(nts, group.firstChid);
+    } else {
+        const total = distances.map(([d , _]) => d).reduce((a,b) => a + b, 0);
+        let i = 0;
+        for (const [distance, start, end] of distances) {
+            const ni = Math.floor(segments.length * distance/total);
+            let text = segments.slice(i, i + ni).join(" ");
+            const nts = new_translation_span(text);
+            //if (i > 0) {
+            //    const br = document.createElement('div');
+            //    br.classList.add('flrh-translated-span-line-break');
+            //    el.parentElement.nextElementSibling.insertBefore(br, el.parentElement.nextElementSibling.firstChild);
+            //}
+            group.insertBefore(nts, start);
+            console.log(text, i, ni, distance, total);
+            i = ni + i;
+        }
+    }
+}
+
+function compute_distances(group) {
+    const rects = group.getClientRects();
+    const distances = [];
+    for (rect of rects) {
+        const res = [];
+        let start = document.elementFromPoint(rect.x, rect.y).closest('.flrh-translatable');
+        const end = document.elementFromPoint(rect.right - 0.01, rect.bottom).closest('.flrh-translatable');
+        console.log(start, end);
+        res.push(start);
+        res.push(end);
+        let count = 0;
+        while(start != end) {
+            count += 1;
+            start = start.nextElementSibling;
+        }
+        res.unshift(count + 1);
+        distances.push(res);
+    }
+
+    return distances;
+}
+
+function new_translation_span(text) {
+    const nts = document.createElement('span');
+    nts.classList.add('flrh-translated-span');
+    nts.textContent = text;
+    return nts;
 }
 
 function new_translation_elment(parent, text) {
-    console.log(parent, text);
     const nel = document.createElement('div');
     nel.classList.add('flrh-translated-text');
-    nel.textContent = text;
+    //nel.textContent = text;
     parent.insertBefore(nel,parent.firstChild);
     parent.setAttribute('data-translated', true);
 }
@@ -209,6 +257,10 @@ function new_translation_elment(parent, text) {
 function remove_translated_group_element(group) {
     const translated = group.querySelectorAll(".flrh-translatable");
     translated.forEach((node) => remove_translated_element(node));
+    const translated_span = group.querySelectorAll(".flrh-translated-span");
+    translated_span.forEach(span => span.remove());
+    const translated_span_br = group.querySelectorAll(".flrh-translated-span-line-break");
+    translated_span_br.forEach(br => br.remove());
 }
 
 function find_groupable_siblings(element) {

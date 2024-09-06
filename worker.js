@@ -54,7 +54,6 @@ async function translate(srclang, dstlang, text) {
 
     if (singlemodel) {
         const model = await ensure_model_loaded(srclang, dstlang);
-        console.log(model, input, options);
         output = translation_service.translate(model, input, options);
     } else {
         await ensure_model_loaded(srclang, "en");
