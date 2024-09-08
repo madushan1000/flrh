@@ -84,13 +84,12 @@ function send_command(worker, command) {
 }
 
 function spanify_page() {
-    let position = 0;
-
     const node_iter = document.createNodeIterator(document.body,
         NodeFilter.SHOW_TEXT, 
         (node) => {
             if (node.parentElement.tagName === 'SCRIPT'
-                || node.parentElement.tagName === 'STYLE') {
+                || node.parentElement.tagName === 'STYLE'
+            ) {
                 return NodeFilter.FILTER_SKIP;
             }
             return NodeFilter.FILTER_ACCEPT;
@@ -98,160 +97,142 @@ function spanify_page() {
     );
 
     const textNodes = [];
-
     while ((currentNode = node_iter.nextNode())){
         textNodes.push(currentNode);
     }
 
-    const ignore_chars = /[^\p{Punctuation}\s]/gu;
-
+    const ignore_chars = /^[\p{Punctuation}\s]+/u;
     for (el of textNodes) {
+        if (/^\s*$/.test(el.textContent)) {
+            continue;
+        }
         const segmenter = new Intl.Segmenter([], { granularity: 'word' });
         const segments = segmenter.segment(el.textContent);
-        let newHTML = "";
-        for (const {segment} of segments) {
-            if (ignore_chars.test(segment)) {
-                newHTML += `<span data-p=${position} class="flrh-translatable"><div class="flrh-original-text">${segment}</div></span>`;
-                position += 1;
-            }
-            else {
-                newHTML += segment;
-            }
-        }
+        let newHTML = Array.from(segments).map(segment => `<span>${segment.segment}</span>`).join("");
+
+        const text_element = document.createElement('span');
         if (newHTML.length != 0) { 
-            const tmp = document.createElement('span');
-            tmp.innerHTML = newHTML;
-            el.parentNode.replaceChild(tmp, el);
+            el.parentNode.insertBefore(text_element, el);
+            text_element.insertAdjacentHTML("afterbegin", newHTML);
+            el.remove();
         }
+
+        let blockHTML = `<span class="flrh-line" id= ${Math.random().toString(16).slice(2)}>`;
+        let bottom = text_element.firstElementChild?.getBoundingClientRect().bottom; 
+        for (child of text_element.children) {
+            if (bottom < child.getBoundingClientRect().bottom) {
+                bottom = child.getBoundingClientRect().bottom;
+                blockHTML += `</span> <span class="flrh-line" id= ${Math.random().toString(16).slice(2)}>` ;
+            }
+            if (ignore_chars.test(child.textContent)) {
+                blockHTML += child.textContent;
+            } else {
+                blockHTML += `<span class="flrh-translatable">${child.textContent}</span>`;
+            }
+        }
+        blockHTML += '</span>';
+        text_element.innerHTML = blockHTML;
     }
 }
 
 function setup_event_listners() {
     document.body.addEventListener('click', async (event) => {
         const el = event.target;
-        if (el.classList.contains('flrh-original-text') && el.parentElement.parentElement?.hasAttribute('data-group')){
-            await split_group(el);
-            return;
-        }
-        if (el.classList.contains('flrh-original-text') && !el.parentElement.hasAttribute('data-translated')) {
-            await add_translation(el);
-            return;
-        } 
-        if (el.classList.contains('flrh-original-text') && el.parentElement.hasAttribute('data-translated')) {
-            remove_translation(el);
-            return;
+        if (el.classList.contains('flrh-translatable')) {
+            el.classList.toggle('flrh-translated');
+            await handle_group(el);
         }
     });
 
     document.body.addEventListener('auxclick', async (event) => {
         const el = event.target;
-        if (el.classList.contains('flrh-original-text') && el.parentElement.parentElement?.hasAttribute('data-group')){
-            clear_group(el);
-            return;
-        }
     });
 }
 
-async function add_translation(element) {
-    const siblings = find_groupable_siblings(element);
-    if (siblings.prev || siblings.next) {
-        const group = merge_group(element, siblings);
-        await add_translated_group_element(group);
-
-    } else {
-        await add_translated_element(element);
+async function handle_group(element) {
+    if (!element.classList.contains('flrh-translated')) {
+        //split_group(element);
+        return;
     }
+    const new_group_id = Math.random().toString(16).slice(2);
+    element.setAttribute('data-group', new_group_id);
+    merge_next_group(element, element.closest('.flrh-line'), new_group_id);
+    merge_prev_group(element, element.closest('.flrh-line'), new_group_id);
+    const weights = containerize_group(new_group_id);
+    await add_translation(new_group_id, weights);
 }
 
-function remove_translation(element) {
-    remove_translated_element(element.parentElement);
-}
-
-async function add_translated_element(element) {
-    if (element){
-        const text = element.textContent;
-        const translated_text = await translate(text);
-        new_translation_elment(element.parentElement,translated_text);
-    }
-}
-
-function remove_translated_element(element) {   
-    const translated = element.querySelector(".flrh-translated-text");
-    element.removeChild(translated);
-    element.removeAttribute('data-translated');
-}
-
-async function add_translated_group_element(group) {
-    const text = group.textContent;
+async function add_translation(group_id, weights) {
+    const elements = document.querySelectorAll(`[data-group="${group_id}"]`);
+    const range = new Range()
+    range.setStartBefore(elements[0]);
+    range.setEndAfter(elements[elements.length - 1]);
+    let text = range.toString();
+    text = text.replace(/[\n\r\s]+/g, ' ');
     const translated_text = await translate(text);
-    const translatables = Array.from(group.querySelectorAll('.flrh-translatable'));
-    segments = translated_text.split(/\s+/);
 
+    const segments = translated_text.split(/\s+/);
+    console.log(translated_text)
     let i = 0;
-    for (element of translatables) {
-        new_translation_elment(element, segments[i]);
-        const span = document.createElement('span');
-        i += 1;
+    const total = weights.reduce((a, b) => a + b[1], 0);
+    for (const [line_id, weight, anker] of weights) {
+        const ni = Math.ceil(segments.length * weight/total);
+        const fraction = segments.slice(i, i + ni).join(' ');
+        i += ni;
+        console.log(total, weight, ni, fraction, anker);
+        anker.insertAdjacentHTML("afterbegin", `<span class="flrh-translated-text">${fraction}</span>`);
     }
-    const distances = compute_distances(group);
+}
 
-    if (distances.length == 1){
-        const nts = new_translation_span(translated_text);
-        group.insertBefore(nts, group.firstChid);
+function containerize_group(id) {
+    const elements = document.querySelectorAll(`[data-group="${id}"]`);
+    const by_line = Object.groupBy(elements, el => el.closest('.flrh-line').id);
+    const weights = [];
+    for ([line, value] of Object.entries(by_line)) {
+        const highlight = document.createElement('span');
+        value[0].before(highlight);
+        highlight.classList.add('flrh-highlight');
+        let range = new Range();
+        range.setStartBefore(value[0]);
+        range.setEndAfter(value.at(-1));
+        highlight.append(range.extractContents());
+        highlight.querySelectorAll('.flrh-translated-text').forEach(el => el.remove());
+        weights.push([line, value.length, value[0]]);
+    }
+    return weights;
+}
+
+function merge_prev_group(element, line, id) {
+    if (element) {
+        if (element.hasAttribute('data-group')) {
+            element.setAttribute('data-group', id);
+            merge_prev_group(element.previousElementSibling, line, id);
+        } else if (element.classList.contains('flrh-highlight')) {
+            const el = element.lastElementChild;
+            element.replaceWith(...element.childNodes);
+            merge_prev_group(el, line, id);
+        }
     } else {
-        const total = distances.map(([d , _]) => d).reduce((a,b) => a + b, 0);
-        let i = 0;
-        for (const [distance, start, end] of distances) {
-            const ni = Math.floor(segments.length * distance/total);
-            let text = segments.slice(i, i + ni).join(" ");
-            const nts = new_translation_span(text);
-            //if (i > 0) {
-            //    const br = document.createElement('div');
-            //    br.classList.add('flrh-translated-span-line-break');
-            //    el.parentElement.nextElementSibling.insertBefore(br, el.parentElement.nextElementSibling.firstChild);
-            //}
-            group.insertBefore(nts, start);
-            console.log(text, i, ni, distance, total);
-            i = ni + i;
+        if (line.previousElementSibling?.lastElementChild) {
+            merge_prev_group(line.previousElementSibling.lastElementChild, line.previousElementSibling, id);
         }
     }
 }
-
-function compute_distances(group) {
-    const rects = group.getClientRects();
-    const distances = [];
-    for (rect of rects) {
-        const res = [];
-        let start = document.elementFromPoint(rect.x, rect.y).closest('.flrh-translatable');
-        const end = document.elementFromPoint(rect.right - 0.01, rect.bottom).closest('.flrh-translatable');
-        console.log(start, end);
-        res.push(start);
-        res.push(end);
-        let count = 0;
-        while(start != end) {
-            count += 1;
-            start = start.nextElementSibling;
+function merge_next_group(element, line, id) {
+    if (element) {
+        if (element.hasAttribute('data-group')) {
+            element.setAttribute('data-group', id);
+            merge_next_group(element.nextElementSibling, line, id);
+        } else if (element.classList.contains('flrh-highlight')) {
+            const el = element.firstElementChild;
+            element.replaceWith(...element.childNodes);
+            merge_next_group(el, line, id);
         }
-        res.unshift(count + 1);
-        distances.push(res);
+    } else {
+        if (line.nextElementSibling?.firstElementChild) {
+            merge_next_group(line.nextElementSibling.firstElementChild, line.nextElementSibling, id);
+        }
     }
-
-    return distances;
-}
-
-function new_translation_span(text) {
-    const nts = document.createElement('span');
-    nts.classList.add('flrh-translated-span');
-    nts.textContent = text;
-    return nts;
-}
-
-function new_translation_elment(parent, text) {
-    const nel = document.createElement('div');
-    nel.classList.add('flrh-translated-text');
-    //nel.textContent = text;
-    parent.insertBefore(nel,parent.firstChild);
-    parent.setAttribute('data-translated', true);
 }
 
 function remove_translated_group_element(group) {
@@ -263,63 +244,6 @@ function remove_translated_group_element(group) {
     translated_span_br.forEach(br => br.remove());
 }
 
-function find_groupable_siblings(element) {
-    let siblings = {};
-    if (element.parentElement.previousElementSibling?.hasAttribute('data-translated')){
-        siblings.prev = element.parentElement.previousElementSibling;
-    }
-    if (element.parentElement.nextElementSibling?.hasAttribute('data-translated')){
-        siblings.next = element.parentElement.nextElementSibling;
-    }
-    if (element.parentElement.previousElementSibling?.hasAttribute('data-group')){
-        siblings.prev = element.parentElement.previousElementSibling;
-    }
-    if (element.parentElement.nextElementSibling?.hasAttribute('data-group')){
-        siblings.next = element.parentElement.nextElementSibling;
-    }
-    return siblings;
-}
-
-function merge_group(element, siblings) {
-    const {prev, next} = siblings;
-    let pnodes = [];
-    let nnodes = [];
-    const parent = element.parentElement;
-
-    if (prev?.hasAttribute('data-translated')) {
-        remove_translated_element(prev);
-        pnodes = get_nodes_between(prev, parent);
-        pnodes.unshift(prev);
-    }
-    if (next?.hasAttribute('data-translated')) {
-        remove_translated_element(next);
-        nnodes = get_nodes_between(parent, next);
-        nnodes.push(next);
-    }
-    if (prev?.hasAttribute('data-group')) {
-        remove_translated_group_element(prev);
-        pnodes.push(...prev.childNodes);
-        pnodes.push(...get_nodes_between(prev, parent));
-    }
-    if (next?.hasAttribute('data-group')) {
-        remove_translated_group_element(next);
-        nnodes.push(...get_nodes_between(parent, next));
-        nnodes.push(...next.childNodes);
-    }
-
-    const new_group = document.createElement('span');
-    new_group.setAttribute('data-group', '');
-    element.parentElement.parentElement.insertBefore(new_group, parent);
-    new_group.append(...pnodes, parent, ...nnodes);
-
-    if (prev?.hasAttribute('data-group')) {
-        prev.remove();
-    }
-    if (next?.hasAttribute('data-group')) {
-        next.remove();
-    }
-    return new_group;
-}
 
 async function split_group(element) {
     const group = element.parentElement.parentElement;
@@ -382,17 +306,6 @@ function clear_group(element) {
         group.parentElement.insertBefore(group.firstChild, group);
     } 
     group.remove();
-}
-
-function get_nodes_between(el1, el2) {
-    let nodes = [];
-    let cl = el1;
-    while(cl != el2) {
-        cl = cl.nextSibling;
-        nodes.push(cl);
-    }
-    nodes.pop();
-    return nodes;
 }
 
 async function translate(text) {

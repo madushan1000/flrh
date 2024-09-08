@@ -49,7 +49,7 @@ async function translate(srclang, dstlang, text) {
     input.push_back(text);
 
     const options = new Module.VectorResponseOptions();
-    options.push_back({qualityScores: false, alignment: false, html: false});
+    options.push_back({qualityScores: true, alignment: "soft", html: false});
     let output; 
 
     if (singlemodel) {
