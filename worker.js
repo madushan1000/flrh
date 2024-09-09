@@ -56,13 +56,14 @@ async function translate(srclang, dstlang, text) {
         const model = await ensure_model_loaded(srclang, dstlang);
         output = translation_service.translate(model, input, options);
     } else {
-        await ensure_model_loaded(srclang, "en");
-        await ensure_model_loaded("en", dstlang);
-        //translate twice
+        const src_model = await ensure_model_loaded(srclang, "en");
+        const dst_model = await ensure_model_loaded("en", dstlang);
+        output = translation_service.translateViaPivoting(src_model, dst_model, input, options);
     }
     ret = output.get(0).getTranslatedText();
     input.delete();
     options.delete();
+    output.delete();
     return ret;
 }
 
