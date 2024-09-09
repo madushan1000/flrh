@@ -18,63 +18,17 @@
 }
 
 .flrh-translated {
-    //background-color: var(--main-background-color);
+    display: inline-block;
+    position: relative;
+    padding-top: 1lh;
 }
 
 .flrh-translated-text {
     position: absolute;
-    top: -175%;
+    margin-top: -1lh;
     white-space: nowrap;
 }
 
 .flrh-highlight {
-    position: relative;
     background-color: rgba(200, 0, 0, 0.4);
-    line-height: 2lh;
 }
-//.flrh-translatable {
-//    display: inline-block;
-//}
-//
-//.flrh-translated {
-//    box-shadow: 0 -5px 0 var(--main-background-color) inset;
-//}
-//
-//.flrh-original-text {
-//    display: inline;
-//}
-//.flrh-translated-text {
-//    height: 1lh;
-//}
-//
-//.flrh-translated-span:before {
-//}
-//.flrh-translated-span {
-//    display: inline;
-//    position: absolute;
-//    --height: 1lh;
-//    --top: -1lh;
-//    white-space: nowrap;
-//    --overflow: clip;
-//    left: 0;
-//    clear: both;
-//}
-//
-//span[data-group] > .flrh-translated-span:nth-of-type(1) {
-//    left: 0;
-//}
-//
-//
-//.flrh-translated-span-line-break {
-//    
-//}
-//
-//.flrh-translatable[data-translated=true] {
-//    box-shadow: 0 -5px 0 var(--main-background-color) inset;
-//}
-//
-//span[data-group] {
-//    background-color: var(--main-background-color);
-//    position: relative;
-//}
-//

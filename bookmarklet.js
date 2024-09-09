@@ -138,7 +138,7 @@ function spanify_page() {
 function setup_event_listners() {
     document.body.addEventListener('click', async (event) => {
         const el = event.target;
-        if (el.classList.contains('flrh-translatable')) {
+        if ((!event.detail || event.detail == 1) && el.classList.contains('flrh-translatable')) {
             el.classList.toggle('flrh-translated');
             await handle_group(el);
         }
@@ -146,12 +146,96 @@ function setup_event_listners() {
 
     document.body.addEventListener('auxclick', async (event) => {
         const el = event.target;
+        if (el.hasAttribute('data-group')) {
+            clear_group(el.dataset.group);
+        }
     });
+
+    document.addEventListener("mouseup", () => {
+        const selection = document.getSelection();
+        if (!selection.isCollapsed) {
+            handle_selection(selection);
+        }
+    });
+}
+
+function handle_selection(selection) {
+    const elements = get_selected_translatables(selection);
+    selection.collapseToStart();
+    for (element of elements) {
+        console.log(element, element.closest('.flrh-line'), element.closest('.flrh-line')?.parentNode);
+    }
+    const by_line = Map.groupBy(elements, el => el.closest('.flrh-line'));
+    const by_paragraph = Map.groupBy(by_line.keys(), line => line.parentNode);
+
+    for (paragraph of by_paragraph.keys()) {
+        const new_group_id = Math.random().toString(16).slice(2);
+        for (line of by_paragraph.get(paragraph)) {
+            for (element of by_line.get(line)) {
+                element.setAttribute('data-group', new_group_id);
+                element.classList.add('flrh-translated');
+                const highlight = element.closest('.flrh-highlight');
+                if (highlight) {
+                    highlight.replaceWith(...highlight.childNodes);
+                }
+            }
+        }
+        handle_group(by_line.get(by_paragraph.get(paragraph)[0])[0]);
+    }
+}
+
+function get_selected_translatables(selection) {
+    const range = selection.getRangeAt(0);
+
+    let node = range.startContainer;
+    const end = range.endContainer;
+
+    if (node == end && node.classList?.contains('flrh-translatable')) {
+        return [node];
+    } 
+    const translatables = [];
+    while (node && node != end) {
+        if (node.classList?.contains('flrh-translatable')) {
+            translatables.push(node)
+        }
+        node = next_node(node);
+    }
+    const first = range.startContainer.parentElement.closest('.flrh-translatable');
+    if (first) {
+        translatables.unshift(first);
+    }
+    return translatables;
+}
+
+function next_node(node) {
+    if (node.hasChildNodes()) {
+        return node.firstChild;
+    } else {
+        while (node && !node.nextSibling) {
+            node = node.parentNode;
+        }
+        if (!node) {
+            return null;
+        }
+        return node.nextSibling;
+    }
+}
+
+function clear_group(id) {
+    const elements = document.querySelectorAll(`[data-group="${id}"]`);
+    for (element of elements) {
+        element.removeAttribute('data-group');
+        element.classList.remove('flrh-translated');
+        element.querySelectorAll('.flrh-translated-text').forEach(el => el.remove());
+        if (element.parentElement.classList.contains('flrh-highlight')) {
+            element.parentElement.replaceWith(...element.parentElement.childNodes);
+        }
+    }
 }
 
 async function handle_group(element) {
     if (!element.classList.contains('flrh-translated')) {
-        //split_group(element);
+        split_group(element);
         return;
     }
     const new_group_id = Math.random().toString(16).slice(2);
@@ -162,24 +246,46 @@ async function handle_group(element) {
     await add_translation(new_group_id, weights);
 }
 
+async function split_group(element) {
+    element.removeAttribute('data-group');
+    element.querySelectorAll('.flrh-translated-text').forEach(el => el.remove());
+    element.parentElement.replaceWith(...element.parentElement.childNodes);
+    const prev_id = Math.random().toString(16).slice(2);
+    const next_id = Math.random().toString(16).slice(2);
+    merge_next_group(element.nextElementSibling, element.closest('.flrh-line'), next_id);
+    merge_prev_group(element.previousElementSibling, element.closest('.flrh-line'), prev_id);
+    const prev_weights = containerize_group(prev_id);
+    const next_weights = containerize_group(next_id);
+    await add_translation(prev_id, prev_weights);
+    await add_translation(next_id, next_weights);
+}
+
 async function add_translation(group_id, weights) {
     const elements = document.querySelectorAll(`[data-group="${group_id}"]`);
+
+    if (elements.length == 0) {
+        return;
+    }
+
+    for (element of elements) {
+        element.querySelector('.flrh-translated-text')?.remove();
+    }
+
     const range = new Range()
     range.setStartBefore(elements[0]);
     range.setEndAfter(elements[elements.length - 1]);
     let text = range.toString();
     text = text.replace(/[\n\r\s]+/g, ' ');
+
     const translated_text = await translate(text);
 
     const segments = translated_text.split(/\s+/);
-    console.log(translated_text)
     let i = 0;
     const total = weights.reduce((a, b) => a + b[1], 0);
     for (const [line_id, weight, anker] of weights) {
         const ni = Math.ceil(segments.length * weight/total);
         const fraction = segments.slice(i, i + ni).join(' ');
         i += ni;
-        console.log(total, weight, ni, fraction, anker);
         anker.insertAdjacentHTML("afterbegin", `<span class="flrh-translated-text">${fraction}</span>`);
     }
 }
@@ -218,6 +324,7 @@ function merge_prev_group(element, line, id) {
         }
     }
 }
+
 function merge_next_group(element, line, id) {
     if (element) {
         if (element.hasAttribute('data-group')) {
@@ -233,79 +340,6 @@ function merge_next_group(element, line, id) {
             merge_next_group(line.nextElementSibling.firstElementChild, line.nextElementSibling, id);
         }
     }
-}
-
-function remove_translated_group_element(group) {
-    const translated = group.querySelectorAll(".flrh-translatable");
-    translated.forEach((node) => remove_translated_element(node));
-    const translated_span = group.querySelectorAll(".flrh-translated-span");
-    translated_span.forEach(span => span.remove());
-    const translated_span_br = group.querySelectorAll(".flrh-translated-span-line-break");
-    translated_span_br.forEach(br => br.remove());
-}
-
-
-async function split_group(element) {
-    const group = element.parentElement.parentElement;
-    const parent = element.parentElement;
-    const pnodes = [];
-    const cnodes = [];
-    const nnodes = [];
-
-    remove_translated_group_element(group);
-    
-    let cn = group.firstChild;
-    while(cn != parent) {
-        pnodes.push(cn);
-        cn = cn.nextSibling;
-    }
-
-    cnodes.push(cn);
-    cn = cn.nextSibling;
-    while(cn?.nodeType == Node.TEXT_NODE) {
-        cnodes.push(cn);
-        cn = cn.nextSibling;
-    }
-
-    while(cn) {
-        nnodes.push(cn);
-        cn = cn.nextSibling;
-    }
-
-    const pelnodes = pnodes.filter((el) => el.nodeType != Node.TEXT_NODE);
-    if (pelnodes.length <= 1) {
-        pnodes.forEach((node) => group.parentNode.insertBefore(node, group));
-        await add_translated_element(pelnodes[0]?.firstChild);
-
-    } else {
-        const prev_group = document.createElement('span');
-        prev_group.setAttribute('data-group', '');
-        pnodes.forEach((node) => prev_group.appendChild(node));
-        group.parentNode.insertBefore(prev_group, group);
-        await add_translated_group_element(prev_group);
-    }
-
-    cnodes.forEach((node) => group.parentNode.insertBefore(node, group));
-
-    const nelnodes = nnodes.filter((el) => el.nodeType != Node.TEXT_NODE);
-    if (nelnodes.length <= 1) {
-        nnodes.reverse().forEach((node) => group.parentNode.insertBefore(node, group.nextSibling));
-        await add_translated_element(nelnodes[0]?.firstChild);
-        group.remove();
-    }
-
-    if (group?.childNodes.length) {
-        await add_translated_group_element(group);
-    }
-}
-
-function clear_group(element) {
-    const group = element.parentNode.parentNode;
-    remove_translated_group_element(group);
-    while(group.firstChild) {
-        group.parentElement.insertBefore(group.firstChild, group);
-    } 
-    group.remove();
 }
 
 async function translate(text) {
