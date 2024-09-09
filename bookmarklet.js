@@ -267,9 +267,6 @@ async function add_translation(group_id, weights) {
         return;
     }
 
-    for (element of elements) {
-        element.querySelector('.flrh-translated-text')?.remove();
-    }
 
     const range = new Range()
     range.setStartBefore(elements[0]);
@@ -278,6 +275,9 @@ async function add_translation(group_id, weights) {
     text = text.replace(/[\n\r\s]+/g, ' ');
 
     const translated_text = await translate(text);
+    for (element of elements) {
+        element.querySelector('.flrh-translated-text')?.remove();
+    }
 
     const segments = translated_text.split(/\s+/);
     let i = 0;
