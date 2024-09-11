@@ -1,9 +1,28 @@
 <dialog id="flrh-dialog">
     <select id="srclang"> 
     </select>
-    <div> 🢂 </div>
+    <div>🢂</div>
     <select id="dstlang"> 
-        <option id="en" selected>English</option>
+        <option id="en">English</option>
     </select>
+    <button id="flrh-dropdown-trigger">|||</button>
+    <div id="flrh-dropdown" tabindex="0">
+        <div class="flrh-menu-container">
+            Background color
+            <input type="color" id="bg-color"/>
+        </div>
+        <div class="flrh-menu-container">
+            Font color
+            <input type="color" id="font-color"/>
+        </div>
+        <div class="flrh-menu-container">
+            Default source language
+            <select id="default-srclang"></select>
+        </div>
+        <div class="flrh-menu-container">
+            Default destination language
+            <select id="default-dstlang"></select>
+        </div>
+    </div>
     <button id="flrh-dialog-close-button" type="reset">❌</button>
 </dialog>

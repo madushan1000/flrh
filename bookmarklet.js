@@ -1,5 +1,10 @@
 async function main() {
-    [window.translation_worker, registry] = await setup_worker();
+    document.head.insertAdjacentHTML('beforeend', `<link typs="text/css" rel="stylesheet" href="${window.FLRHrootURL}/main.css">`);
+    document.body.insertAdjacentHTML('beforeend', `<iframe style="display:none" src="${window.FLRHrootURL}/settings.html" id="flrh-settings"></iframe>`)
+
+    window.settings_storage = document.getElementById('flrh-settings').contentWindow;
+    const [translation_worker, registry] = await setup_worker();
+    window.translation_worker = translation_worker;
     create_overlay(registry);
     spanify_page();
     setup_event_listners();
@@ -10,12 +15,9 @@ async function create_overlay(registry){
     const response = await fetch(window.FLRHrootURL + "/dialog.html");
     const container = document.createElement("div");
     const text = await response.text();
-
     container.innerHTML = text;
 
-
     const lang_map = new Map();
-
     for (const touple in registry) {
         const srclang = touple.slice(0, 2);
         const dstlang = touple.slice(2, 4);
@@ -36,9 +38,6 @@ async function create_overlay(registry){
         option.textContent = dn.of(key);
         option.id = key;
         srclang_options.appendChild(option);
-        if (key === "de") {
-            option.setAttribute("selected", "");
-        }
     }
 
     const dstlang_options = container.querySelector("#dstlang");
@@ -48,6 +47,8 @@ async function create_overlay(registry){
         option.id = key;
         dstlang_options.appendChild(option);
     }
+
+    await ensure_settings(container);
 
     document.body.appendChild(container);
 
@@ -60,11 +61,63 @@ async function create_overlay(registry){
     });
 }
 
+async function ensure_settings(container) {
+
+    const common_settings = JSON.parse(await send_command_iframe(window.settings_storage, ["get_common_settings"]));
+    const site_settings = JSON.parse(await send_command_iframe(window.settings_storage, ["get_site_settings", window.location.host]));
+
+    const bg_color = common_settings?.bg_color || getComputedStyle(document.documentElement).getPropertyValue('--main-background-color');
+    const font_color = common_settings?.font_color || getComputedStyle(document.documentElement).getPropertyValue('--main-font-color');
+
+
+    document.documentElement.style.setProperty('--main-background-color', bg_color);
+    document.documentElement.style.setProperty('--main-font-color', font_color);
+
+    const bg_color_input = container.querySelector('#bg-color');
+    bg_color_input.value = bg_color;
+
+    const font_color_input = container.querySelector('#font-color');
+    font_color_input.value = font_color;
+
+    bg_color_input.addEventListener("input", event => document.documentElement.style.setProperty('--main-background-color', event.target.value));
+    bg_color_input.addEventListener("change", async (event) => {
+        document.documentElement.style.setProperty('--main-background-color', event.target.value);
+        await send_command_iframe(window.settings_storage, ["set_common_settings", JSON.stringify({bg_color: event.target.value, font_color: font_color_input.value})]);
+    });
+
+    font_color_input.addEventListener("input", event => document.documentElement.style.setProperty('--main-font-color', event.target.value));
+    font_color_input.addEventListener("change", async (event) => {
+        document.documentElement.style.setProperty('--main-font-color', event.target.value);
+        await send_command_iframe(window.settings_storage, ["set_common_settings", JSON.stringify({bg_color: bg_color_input.value, font_color: event.target.value})]);
+    });
+
+    const srclang = site_settings?.srclang || "de";
+    const dstlang = site_settings?.dstlang || "en";
+
+}
+
 async function setup_worker() {
     let worker_url = getWorkerURL(window.FLRHrootURL + "/worker.js");
     const worker = new Worker(worker_url);
     const res = await send_command(worker, ["import", window.FLRHrootURL]);
     return [worker, res];
+}
+
+
+function send_command_iframe(worker, command) {
+    return new Promise((res, rej) => {
+        const channel = new MessageChannel();
+
+        channel.port1.onmessage = ({data}) => {
+            channel.port1.close();
+            if (data.error) {
+                rej(data.error);
+            } else {
+                res(data.result);
+            }
+        };
+        worker.postMessage(command, "*", [channel.port2]);
+    });
 }
 
 function send_command(worker, command) {
@@ -357,7 +410,5 @@ function getWorkerURL( url ) {
   return URL.createObjectURL( new Blob( [ content ], { type: "text/javascript" } ) );
 }
 
-
-document.head.insertAdjacentHTML('beforeend', `<link typs="text/css" rel="stylesheet" href="${window.FLRHrootURL}/main.css">`);
 
 main()
