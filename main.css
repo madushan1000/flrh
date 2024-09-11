@@ -1,91 +1,129 @@
 @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
 
 :root {
-    --main-background-color: #008000;
+    --main-background-color: #2ab97b;
     --main-font-color: #ffffff;
     --highlight-height: 1lh;
 }
 
 #flrh-dialog[open] {
-    position: fixed;
-    top: 0;
-    margin-right: 0%;
-    border: 0;
-    border-radius: 0 0 0 10px;
-    padding: 10px;
-    gap: 1em;
-    z-index: 1000;
-    display: flex;
-    justify-content: space-between;
-    background-color: color-mix(in srgb, var(--main-background-color), transparent 20%);
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    margin: 0 0 0 auto !important;
+    border: 0 !important;
+    border-radius: 0 0 0 10px !important;
+    padding: 10px !important;
+    gap: 0.5em !important;
+    z-index: 2147483647 !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background-color: color-mix(in srgb, var(--main-background-color), transparent 10%) !important;
+    font-size: 10pt !important;
+}
+
+.flrh-icon {
+    width: 15px !important;
+    height: 23px !important;
+}
+
+
+#flrh-dialog > select {
+	background-color: transparent !important;
+    border-radius: 4px !important;
+	border-style: solid !important;
+    border-color: black !important;
+	height: 2em !important;
+    width: 10em !important;
+}
+
+#flrh-dialog > button {
+    border-radius: 4px !important;
+    border-style: solid !important;
+    border-color: black !important;
+    border: 2px;
+    background-color: transparent !important;
+    width: 2em !important;
+    height: 2em !important;
 }
 
 #flrh-dialog:has(#flrh-dropdown:focus-within),
 #flrh-dialog:has(#flrh-dropdown-trigger:focus)
 {
-    border-radius: 0 0 0 0;
+    border-radius: 0 0 0 0 !important;
 }
 #flrh-dropdown-trigger ~ #flrh-dropdown:focus-within,
 #flrh-dropdown-trigger:focus ~ #flrh-dropdown {
-    transform: scaleX(1) scaleY(1);
-    transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
-    transition-duration: 100ms;
-    opacity: 1;
+    transform: scaleX(1) scaleY(1) !important;
+    transition-timing-function: cubic-bezier(0, 0, 0.2, 1) !important;
+    transition-duration: 100ms !important;
+    opacity: 1 !important;
 }
 
 #flrh-dropdown {
-    position: absolute;
-    z-index: 1001;
-    background-color: color-mix(in srgb, var(--main-background-color), transparent 20%);
-    transform: scaleX(0) scaleY(0);
-    transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
-    transition-duration: 75ms;
-    opacity: 0;
-    top: 100%;
-    left: 0px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    border-radius: 0 0 0 10px;
-    padding: 10px;
-    box-sizing: border-box;
-    gap: 1em;
-    color: var(--main-font-color);
+    position: absolute !important;
+    background-color: color-mix(in srgb, var(--main-background-color), transparent 10%) !important;
+    transform: scaleX(0) scaleY(0) !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 1, 1) !important;
+    transition-duration: 75ms !important;
+    opacity: 0 !important;
+    top: 100% !important;
+    left: 0px !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border-radius: 0 0 0 10px !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+    gap: 1em !important;
+    color: var(--main-font-color) !important;
 }
 
 .flrh-menu-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
 }
 
 
 .flrh-menu-container > input[type="color"] {
-    border: none;
-    width: 32px;
+    border: none !important;
+    width: 32px !important;
+}
+
+.flrh-menu-container > button {
+    border-radius: 4px !important;
+    border-style: solid !important;
+    border-color: black !important;
+    border: 2px;
+    background-color: transparent !important;
+    height: 2em !important;
+    color: var(--main-font-color) !important;
+    margin-left: auto !important;
 }
 
 .flrh-translatable:hover {
-    box-shadow: 0 -0.2lh 0 var(--main-background-color) inset;
+    box-shadow: 0 -0.2lh 0 var(--main-background-color) inset !important;
 }
 
 .flrh-translated {
-    display: inline-block;
-    position: relative;
-    padding-top: 1lh;
-    color: var(--main-font-color);
+    display: inline-block !important;
+    position: relative !important;
+    padding-top: 1lh !important;
+    color: var(--main-font-color) !important;
 }
 
 .flrh-translated-text {
-    position: absolute;
-    margin-top: -1lh;
-    white-space: nowrap;
-    font-family: "Kalam", cursive;
-    font-weight: 900;
-    font-style: normal;
-    color: var(--main-background-color);
+    position: absolute !important;
+    margin-top: -1lh !important;
+    white-space: nowrap !important;
+    font-family: "Kalam", cursive !important;
+    font-weight: 900 !important;
+    font-style: normal !important;
+    color: var(--main-background-color) !important;
+    z-index: 2147483647 !important;
 }
 
 .flrh-highlight {
-    box-shadow: 0 var(--highlight-height) 0 var(--main-background-color) inset;
+    box-shadow: 0 var(--highlight-height) 0 var(--main-background-color) inset !important;
 }

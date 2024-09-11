@@ -1,14 +1,10 @@
 async function main() {
     document.head.insertAdjacentHTML('beforeend', `<link typs="text/css" rel="stylesheet" href="${window.FLRHrootURL}/main.css">`);
-    document.body.insertAdjacentHTML('beforeend', `<iframe style="display:none" src="${window.FLRHrootURL}/settings.html" id="flrh-settings"></iframe>`)
-
-    window.settings_storage = document.getElementById('flrh-settings').contentWindow;
     const [translation_worker, registry] = await setup_worker();
     window.translation_worker = translation_worker;
     create_overlay(registry);
     spanify_page();
     setup_event_listners();
-    
 }
 
 async function create_overlay(registry){
@@ -34,9 +30,10 @@ async function create_overlay(registry){
 
     const srclang_options = container.querySelector("#srclang");
     for (const key of lang_map.keys()) {
-        const option = document.createElement("option")
+        const option = document.createElement("option");
         option.textContent = dn.of(key);
-        option.id = key;
+        option.id = `srclang-${key}`;
+        option.value = key;
         srclang_options.appendChild(option);
     }
 
@@ -44,11 +41,12 @@ async function create_overlay(registry){
     for (const key of lang_map.get("en").keys()) {
         const option = document.createElement("option")
         option.textContent = dn.of(key);
-        option.id = key;
+        option.id = `dstlang-${key}`;
+        option.value = key;
         dstlang_options.appendChild(option);
     }
 
-    await ensure_settings(container);
+    populate_settings_dropdown(container);
 
     document.body.appendChild(container);
 
@@ -61,63 +59,61 @@ async function create_overlay(registry){
     });
 }
 
-async function ensure_settings(container) {
+function populate_settings_dropdown(container) {
 
-    const common_settings = JSON.parse(await send_command_iframe(window.settings_storage, ["get_common_settings"]));
-    const site_settings = JSON.parse(await send_command_iframe(window.settings_storage, ["get_site_settings", window.location.host]));
-
-    const bg_color = common_settings?.bg_color || getComputedStyle(document.documentElement).getPropertyValue('--main-background-color');
-    const font_color = common_settings?.font_color || getComputedStyle(document.documentElement).getPropertyValue('--main-font-color');
-
+    const bg_color = localStorage.getItem('flrh-bg-color') || getComputedStyle(document.documentElement).getPropertyValue('--main-background-color');
+    const font_color = localStorage.getItem('flrh-font-color') || getComputedStyle(document.documentElement).getPropertyValue('--main-font-color');
 
     document.documentElement.style.setProperty('--main-background-color', bg_color);
     document.documentElement.style.setProperty('--main-font-color', font_color);
 
     const bg_color_input = container.querySelector('#bg-color');
     bg_color_input.value = bg_color;
-
-    const font_color_input = container.querySelector('#font-color');
-    font_color_input.value = font_color;
-
     bg_color_input.addEventListener("input", event => document.documentElement.style.setProperty('--main-background-color', event.target.value));
     bg_color_input.addEventListener("change", async (event) => {
         document.documentElement.style.setProperty('--main-background-color', event.target.value);
-        await send_command_iframe(window.settings_storage, ["set_common_settings", JSON.stringify({bg_color: event.target.value, font_color: font_color_input.value})]);
+        localStorage.setItem('flrh-bg-color', event.target.value);
     });
 
+    const font_color_input = container.querySelector('#font-color');
+    font_color_input.value = font_color;
     font_color_input.addEventListener("input", event => document.documentElement.style.setProperty('--main-font-color', event.target.value));
     font_color_input.addEventListener("change", async (event) => {
         document.documentElement.style.setProperty('--main-font-color', event.target.value);
-        await send_command_iframe(window.settings_storage, ["set_common_settings", JSON.stringify({bg_color: bg_color_input.value, font_color: event.target.value})]);
+        localStorage.setItem('flrh-font-color', event.target.value);
     });
 
-    const srclang = site_settings?.srclang || "de";
-    const dstlang = site_settings?.dstlang || "en";
+    const srclang = localStorage.getItem('flrh-srclang') || "de";
+    const srclang_select = container.querySelector("#srclang");
+    srclang_select.value = srclang;
+    srclang_select.addEventListener("change", async (event) => {
+        localStorage.setItem('flrh-srclang', event.target.value);
+    });
 
+    const dstlang = localStorage.getItem('flrh-dstlang') || "en";
+    const dstlang_select = container.querySelector("#dstlang");
+    dstlang_select.value = dstlang;
+    dstlang_select.addEventListener("change", async (event) => {
+        localStorage.setItem('flrh-dstlang', event.target.value);
+    });
+
+    const clear_settings = container.querySelector('#flrh-clear-settings');
+    clear_settings.addEventListener("click", (event) => {
+        for (const key of Object.keys(localStorage)) {
+            if (key.slice(0,5) == "flrh-") {
+                localStorage.removeItem(key);
+            }
+        }
+        window.location.reload();
+    });
 }
 
 async function setup_worker() {
-    let worker_url = getWorkerURL(window.FLRHrootURL + "/worker.js");
-    const worker = new Worker(worker_url);
+    const worker_url = window.FLRHrootURL + "/worker.js";
+    const content = await fetch(worker_url).then(res => res.text());
+    let worker = new Worker('data:application/javascript,' + encodeURIComponent(content));
     const res = await send_command(worker, ["import", window.FLRHrootURL]);
     return [worker, res];
-}
-
-
-function send_command_iframe(worker, command) {
-    return new Promise((res, rej) => {
-        const channel = new MessageChannel();
-
-        channel.port1.onmessage = ({data}) => {
-            channel.port1.close();
-            if (data.error) {
-                rej(data.error);
-            } else {
-                res(data.result);
-            }
-        };
-        worker.postMessage(command, "*", [channel.port2]);
-    });
 }
 
 function send_command(worker, command) {
@@ -215,9 +211,6 @@ function setup_event_listners() {
 function handle_selection(selection) {
     const elements = get_selected_translatables(selection);
     selection.collapseToStart();
-    for (element of elements) {
-        console.log(element, element.closest('.flrh-line'), element.closest('.flrh-line')?.parentNode);
-    }
     const by_line = Map.groupBy(elements, el => el.closest('.flrh-line'));
     const by_paragraph = Map.groupBy(by_line.keys(), line => line.parentNode);
 
@@ -401,13 +394,8 @@ async function translate(text) {
     const dstlang_select = flrh_dialog.querySelector("#dstlang");
     const srclang = srclang_select.options[srclang_select.selectedIndex];
     const dstlang = dstlang_select.options[dstlang_select.selectedIndex];
-    const translation = await send_command(window.translation_worker, ["translate", srclang.id, dstlang.id, text]);
+    const translation = await send_command(window.translation_worker, ["translate", srclang.value, dstlang.value, text]);
     return translation;
-}
-
-function getWorkerURL( url ) {
-  const content = `importScripts( "${ url }" );`;
-  return URL.createObjectURL( new Blob( [ content ], { type: "text/javascript" } ) );
 }
 
 
