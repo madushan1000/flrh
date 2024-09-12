@@ -4,7 +4,7 @@ FLRH(Foreign Language Reading Helper) is a web reader you can load via a bookmar
 ## How to use?
 Drag and drop the link below to your bookmark toolbar, you can also just copy the link and create the bookmarklet manually. 
 
-[<img src="icon-192.png">](javascript:%28function%28%29{window.FLRHrootURL='https://madushan.caas.lk/flrh';document.getElementsByTagName%28'body'%29[0].appendChild%28document.createElement%28'script'%29%29.setAttribute%28'src',window.FLRHrootURL+'/bookmarklet.js'%29}%29%28%29;)
+[<img src="icon-192.png" alt="FLRH">](javascript:%28function%28%29{window.FLRHrootURL='https://madushan.caas.lk/flrh';document.getElementsByTagName%28'body'%29[0].appendChild%28document.createElement%28'script'%29%29.setAttribute%28'src',window.FLRHrootURL+'/bookmarklet.js'%29}%29%28%29;)
 
 Then, when you're on a website you want to run the web reader, just click on the bookmark. And once the overlay is loaded, select the language you want to translate to/from and then click on the words you want to translate. You can also select the words you want to translate and FLRH will batch translate them. Translations are not perfect, but usually good enough to start learning. Note that FLRH is not intended as a full page translator. For that use a web extension like TWP.
 
