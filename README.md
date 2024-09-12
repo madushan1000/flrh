@@ -14,7 +14,7 @@ Then, go to the website you want to translate and click on the bookmarklet. Wait
 * Middle-click on a sentence to delete the whole translation.
 
 Here is a short screencast showing the operation. Pay attention to the mouse icon on the top right. 
-<video src="screencast.mp4"> </video>
+<video src="screencast.mp4" controls> </video>
 
 Translations are not perfect, but usually good enough to start learning.
 
