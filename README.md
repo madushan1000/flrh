@@ -7,7 +7,7 @@ Drag and drop the link below to your bookmark toolbar, you can also just copy th
 <a id="bookmarklet">FLRH</a>
 <script>
 let bookmarklet = document.getElementById("bookmarklet");
-bookmarklet.setAttribute('href') = `javascript%3A(function()%7Bwindow.FLRHrootURL%3D%22https%3A%2F%2Fmadushan.caas.lk%2Fflrh%22%3Bdocument.getElementsByTagName('body')%5B0%5D.appendChild(document.createElement('script')).setAttribute('src'%2Cwindow.FLRHrootURL%2B'%2Fbookmarklet.js')%7D)()%3B`;
+bookmarklet.setAttribute('href', `javascript%3A(function()%7Bwindow.FLRHrootURL%3D%22https%3A%2F%2Fmadushan.caas.lk%2Fflrh%22%3Bdocument.getElementsByTagName('body')%5B0%5D.appendChild(document.createElement('script')).setAttribute('src'%2Cwindow.FLRHrootURL%2B'%2Fbookmarklet.js')%7D)()%3B`);
 </script>
 
 ## How does it work?
