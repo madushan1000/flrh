@@ -6,12 +6,24 @@ Drag and drop the link below to your bookmark toolbar, you can also just copy th
 
 [<img src="icon-192.png" alt="FLRH">](javascript:%28function%28%29{window.FLRHrootURL='https://madushan.caas.lk/flrh';document.getElementsByTagName%28'body'%29[0].appendChild%28document.createElement%28'script'%29%29.setAttribute%28'src',window.FLRHrootURL+'/bookmarklet.js'%29}%29%28%29;)
 
-Then, when you're on a website you want to run the web reader, just click on the bookmark. And once the overlay is loaded, select the language you want to translate to/from and then click on the words you want to translate. You can also select the words you want to translate and FLRH will batch translate them. Translations are not perfect, but usually good enough to start learning. Note that FLRH is not intended as a full page translator. For that use a web extension like TWP.
+Then, go to the website you want to translate and click on the bookmarklet. Wait until the FLRH overlay is loaded. Select the language you want to translate to/from in the overlay. And to translate,
+
+* Click on a word to translate it.
+* Click on it again to delete the translation.
+* Select multiple words or sentences to translate them all together.
+* Middle-click on a sentence to delete the whole translation.
+
+Here is a short screencast showing the operation. Pay attention to the mouse icon on the top right. 
+<video src="screencast.mp4"> </video>
+
+Translations are not perfect, but usually good enough to start learning.
 
 ## Non Goals.
 * FLRH is just a simple web reader. I don't plan to add any advanced features.
 * It will not define words/give context, use a dictionary extension.
 * It will not create flashcards/save articles for later viewing or save progress in other ways.
+* FLRH is not intended as a full page translator. Use an extension like TWP.
+
 
 ## How does it work?
 All the translations happen locally on your browser. FLRH uses [bergamot-translator](https://github.com/browsermt/bergamot-translator) WASM build, and machine learning models trained by mozilla [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/). When you trigger the bookmarklet, it'll download and usually cache all the files needed for translations locally(~5Mb for the translator + ~20Mb for each language you want to use).
