@@ -8,6 +8,10 @@ Drag and drop the link below to your bookmark toolbar, you can also just copy th
 
 Then, when you're on a website you want to run the web reader, just click on the bookmark. And once the overlay is loaded, select the language you want to translate to/from and then click on the words you want to translate. You can also select the words you want to translate and FLRH will batch translate them. Translations are not perfect, but usually good enough to start learning. Note that FLRH is not intended as a full page translator. For that use a web extension like TWP.
 
+## Non Goals.
+* FLRH is just a simple web reader. I don't plan to add any advanced features.
+* It will not define words/give context, use a dictionary extension.
+* It will not create flashcards/save articles for later viewing or save progress in other ways.
 
 ## How does it work?
 All the translations happen locally on your browser. FLRH uses [bergamot-translator](https://github.com/browsermt/bergamot-translator) WASM build, and machine learning models trained by mozilla [firefox-translations-models](https://github.com/mozilla/firefox-translations-models/). When you trigger the bookmarklet, it'll download and usually cache all the files needed for translations locally(~5Mb for the translator + ~20Mb for each language you want to use).
