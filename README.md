@@ -17,4 +17,4 @@ Generally, it should work for most websites, even on smartphones. But some websi
 
 ```
 default-src https://madushan.caas.lk/flrh/; script-src-elem https://madushan.caas.lk/flrh/ https://cdn.jsdelivr.net/gh/madushan1000/; style-src https://madushan.caas.lk/flrh/ https://fonts.googleapis.com/; connect-src https://madushan.caas.lk/flrh/ https://cdn.jsdelivr.net/gh/madushan1000/; font-src https://fonts.gstatic.com/; worker-src data:; script-src 'wasm-unsafe-eval';
-````
+```
